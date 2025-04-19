@@ -11,6 +11,9 @@ import io
 import os
 from typing import Optional
 import json
+import pandas as pd
+import datetime as dt
+import queue
 
 # Try to import picamera2, fallback to None if not available
 try:
@@ -69,12 +72,20 @@ class Camera:
         
 app = FastAPI()
 
+active_sessions = queue.Queue()
+
+# Directory for storing Excel files
+OUT_FOLDER = "output_excels"
+TEMP_FOLDER = "temp_excels"
+os.makedirs(TEMP_FOLDER, exist_ok=True)
+os.makedirs(OUT_FOLDER, exist_ok=True)
+
 # For debugging purposes
 print("current:", os.getcwd())
 print("Using PiCamera:", picamera_available)
 
 # Mount static files (React build)
-app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
+app.mount("/assets", StaticFiles(directory="../frontend/src/assets"), name="assets")
 
 # CORS middleware
 app.add_middleware(
@@ -116,12 +127,22 @@ def process_frame(frame):
 def process_framed(frame):
     results = matmodel(frame)
     detections = []
+    premature = 0
+    potential = 0  
+    mature = 0
 
     for result in results:
         for box in result.boxes:
             class_id = int(box.cls[0])
             score = float(box.conf[0])
             label = result.names[class_id] if class_id in result.names else "Unknown"
+
+            if label == 'Premature':
+                premature += 1
+            elif label == 'Potential':
+                potential += 1 
+            elif label == 'Mature':
+                mature += 1
 
             if score < 0.7:
                 continue
@@ -139,12 +160,65 @@ def process_framed(frame):
                 "confidence": score,
                 "bbox": [x1, y1, x2, y2]
             })
+            
+    save_detection_entry(premature, potential, mature)
 
-    return frame, detections
+    return frame, detections, premature, potential, mature
+
 
 def frame_to_base64(framed):
     _, buffer = cv2.imencode('.jpg', framed)
     return base64.b64encode(buffer).decode('utf-8')
+
+def save_detection_entry(premature, potential, mature):
+    time_stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    start_time = active_sessions.get()
+    active_sessions.put(start_time)
+    total = premature + potential + mature
+    row = {
+        'Timestamp': time_stamp,
+        'Premature': premature,
+        'Potential': potential,
+        'Mature': mature,
+        'Total Coconuts': total
+    }
+    temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+    if not os.path.exists(temp_path):
+        raise FileNotFoundError(f"No active CSV session: {temp_path}")
+    df = pd.read_csv(temp_path)
+    df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    df.to_csv(temp_path, index=False)
+
+@app.post("/start-counting")
+def start_counting_api():
+    for file_name in os.listdir(TEMP_FOLDER):
+        file_path = os.path.join(TEMP_FOLDER, file_name)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting file {file_path}: {e}")
+    
+    start_time = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    active_sessions.put(start_time)  # Add the start time to the queue for FIFO processing
+    df = pd.DataFrame(columns=['Timestamp', 'Image_Name', 'Premature', 'Potential', 'Mature', 'Total Coconuts'])
+    temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+    df.to_csv(temp_path, index=False)
+    return {"start_time": start_time}
+
+@app.post("/stop-counting")
+def stop_counting_api():
+    start_time = active_sessions.get()
+    end_time = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+    df = pd.read_csv(temp_path)
+    df_transposed = df.T
+    df_transposed.columns = [f'Entry {i+1}' for i in range(df_transposed.shape[1])]
+    output_file = f"coconut_data_{start_time}_{end_time}.xlsx"
+    output_path = os.path.join(OUT_FOLDER, f"coconut_data_{start_time}_{end_time}.xlsx")
+    df_transposed.to_excel(output_path, index=True, header=True)
+    os.remove(temp_path)  # Clean up the CSV file after export
+    return {"message": "Excel exported", "filename": output_file}
 
 @app.get("/")
 async def read_root():
@@ -170,15 +244,6 @@ async def upload_image(
     # Process the frame
     processed_frame, classifications = process_frame(img)
 
-    # Save the processed image
-    save_dir = "uploaded_images_disease"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    filename = f"processed_{file.filename}"
-    save_path = os.path.join(save_dir, filename)
-    cv2.imwrite(save_path, processed_frame)
-
     # Convert processed frame to base64 for frontend display
     base64_image = frame_to_base64(processed_frame)
 
@@ -186,8 +251,7 @@ async def upload_image(
         "image": base64_image,
         "classifications": classifications,
         "location": location,
-        "device": device,
-        "saved_path": save_path
+        "device": device
     }
 
 @app.post("/upload/maturity")
@@ -208,20 +272,7 @@ async def upload_image(
     img = cv2.resize(img, (640, 360))
 
     # Process the frame
-    processed_frame, detections = process_framed(img)
-
-    # Save the processed image
-    save_dir = "uploaded_images_maturity"
-    if not os.path.exists(save_dir):
-        try:
-            os.makedirs(save_dir)
-            print(f"Directory '{save_dir}' created.")
-        except Exception as e:
-            return {"error": f"Failed to create directory: {str(e)}"}
-
-    filename = f"processed_{file.filename}"
-    save_path = os.path.join(save_dir, filename)
-    cv2.imwrite(save_path, processed_frame)
+    processed_frame, detections, premature, potential, mature = process_framed(img)
 
     # Convert processed frame to base64 for frontend display
     base64_image = frame_to_base64(processed_frame)
@@ -231,11 +282,12 @@ async def upload_image(
         "detections": detections,
         "location": location,
         "device": device,
-        "saved_path": save_path
+        "counts": {
+            "Premature": premature,
+            "Potential": potential,
+            "Mature": mature
+        }
     }
-
-
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -248,7 +300,7 @@ async def websocket_endpoint(websocket: WebSocket):
             frame = camera.capture_frame()
 
             # Process the frame
-            processed_frame, detections = process_framed(frame)
+            processed_frame, detections, premature, potential, mature = process_framed(frame)
 
             # Convert to base64
             base64_frame = frame_to_base64(processed_frame)
@@ -256,7 +308,12 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send frame and detections to client
             await websocket.send_text(json.dumps({
                 "image": base64_frame,
-                "detections": detections
+                "detections": detections,
+                "counts": {
+                    "Premature": premature,
+                    "Potential": potential,
+                    "Mature": mature
+                }
             }))
 
     except Exception as e:
