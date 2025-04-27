@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Box, Button, TextField, Container, Paper, Typography, Grid, Card, CardContent } from '@mui/material';
-import { motion } from 'framer-motion'; // Animate 
+import { motion } from 'framer-motion'; // Animate
+
 function App() {
   const [locationName, setLocationName] = useState('');
   const [deviceName, setDeviceName] = useState('');
@@ -108,11 +109,11 @@ function App() {
     <Grid container spacing={4}>
       <Grid item xs={12} md={8}>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-          <Paper elevation={5} sx={{ p: 4, borderRadius: 4 }}>
-            <Typography variant="h4" textAlign="center" gutterBottom>Coconut Fruit Maturity Detection</Typography>
+          <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+            <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Coconut Fruit Maturity Detection</Typography>
             <Grid container spacing={2} mb={2}>
-              <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} /></Grid>
-              <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} /></Grid>
+              <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
+              <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
             </Grid>
             <Grid container spacing={2} mb={2}>
               <Grid item xs={6}><Button fullWidth variant="contained" color={isStreaming ? 'error' : 'primary'} onClick={isStreaming ? stopStream : startStream}>{isStreaming ? 'Stop Camera' : 'Start Pi Camera'}</Button></Grid>
@@ -121,13 +122,13 @@ function App() {
             <Grid container spacing={2} mb={2}>
               <Grid item xs={6}><Button fullWidth variant="contained" disabled={!isStreaming} onClick={captureFrame}>Save Frame</Button></Grid>
               <Grid item xs={6}>
-                <Button fullWidth variant="contained" component="label">
+                <Button fullWidth variant="contained" component="label" color="secondary">
                   Upload Image
                   <input hidden type="file" accept="image/*" onChange={handleImageUploadMat} />
                 </Button>
               </Grid>
             </Grid>
-            <Box sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: 'grey.100', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Box sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               {detectedImage
                 ? <img src={detectedImage} alt="Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <Typography variant="h6" color="text.secondary">{isStreaming ? 'Streaming...' : 'Upload or Start Camera'}</Typography>
@@ -138,17 +139,24 @@ function App() {
       </Grid>
       <Grid item xs={12} md={4}>
         <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.8 }}>
-          <Paper elevation={5} sx={{ p: 4, borderRadius: 4 }}>
-            <Typography variant="h4" textAlign="center" gutterBottom>Maturity Counts</Typography>
+          <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+            <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Maturity Counts</Typography>
             <Box display="flex" flexDirection="column" gap={2}>
-              {Object.entries(maturityCounts).map(([label, value]) => (
-                <Card key={label} variant="outlined" sx={{ bgcolor: 'grey.100', textAlign: 'center' }}>
-                  <CardContent>
-                    <Typography variant="subtitle1" fontWeight="bold">{label}</Typography>
-                    <Typography variant="h5" color="primary">{value}</Typography>
-                  </CardContent>
-                </Card>
-              ))}
+              {Object.entries(maturityCounts).map(([label, value]) => {
+                let color;
+                if (label === 'Premature') color = '#d0a1d6'; // Soft pinkish-purple
+                if (label === 'Potential') color = '#f0c6a0'; // Soft peach
+                if (label === 'Mature') color = '#a5d6a7'; // Soft green
+
+                return (
+                  <Card key={label} variant="outlined" sx={{ bgcolor: '#fafafa', textAlign: 'center' }}>
+                    <CardContent>
+                      <Typography variant="subtitle1" fontWeight="bold">{label}</Typography>
+                      <Typography variant="h5" style={{ color }}>{value}</Typography>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Box>
           </Paper>
         </motion.div>
@@ -158,24 +166,24 @@ function App() {
 
   const renderCocomadInterface = () => (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-      <Paper elevation={5} sx={{ p: 4, borderRadius: 4 }}>
-        <Typography variant="h4" textAlign="center" gutterBottom>Coconut Tree Disease Classification</Typography>
+      <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+        <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Coconut Tree Disease Classification</Typography>
         <Grid container spacing={2} mb={2}>
-          <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} /></Grid>
-          <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
+          <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
         </Grid>
-        <Button fullWidth variant="contained" component="label">
+        <Button fullWidth variant="contained" component="label" color="secondary">
           Upload Coconut Image
           <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
         </Button>
-        <Box mt={3} sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: 'grey.100', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Box mt={3} sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {detectedImageDisease
             ? <img src={detectedImageDisease} alt="Disease Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <Typography variant="h6" color="text.secondary">Upload to classify disease</Typography>
           }
         </Box>
         {diseaseResult && (
-          <Typography mt={3} variant="h5" color="success.main" textAlign="center">
+          <Typography mt={3} variant="h5" color="primary" textAlign="center">
             {diseaseResult}
           </Typography>
         )}
@@ -188,9 +196,9 @@ function App() {
       <Container maxWidth="md">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.6 }}>
           <Box textAlign="center" py={10}>
-            <Typography variant="h3" gutterBottom>Welcome to CocoMD v0.1</Typography>
+            <Typography variant="h3" gutterBottom sx={{ color: '#2c3e50' }}>Welcome to CocoMD v0.1</Typography>
             <Box mt={5} display="flex" justifyContent="center" gap={3}>
-              <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')}>Maturity Detection</Button>
+              <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')} color="primary">Maturity Detection</Button>
               <Button size="large" variant="contained" color="secondary" onClick={() => setSelectedInterface('COCOMAD')}>Disease Classification</Button>
             </Box>
           </Box>
@@ -201,7 +209,7 @@ function App() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Button variant="outlined" onClick={() => setSelectedInterface(null)} sx={{ mb: 3 }}>
+      <Button variant="outlined" onClick={() => setSelectedInterface(null)} sx={{ mb: 3, color: '#2c3e50', borderColor: '#2c3e50' }}>
         Back
       </Button>
       {selectedInterface === 'COCOMAT' ? renderCocomatInterface() : renderCocomadInterface()}
