@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Button, TextField, Container, Paper, Typography, Grid, Card, CardContent } from '@mui/material';
+import { Box, Button, TextField, Container, Paper, Typography, Grid, Card, CardContent, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion'; // Animate
 
 function App() {
@@ -17,10 +17,12 @@ function App() {
     Potential: 0,
     Mature: 0,
   });
+  const [loading, setLoading] = useState(false);
 
   const resetCounts = () => setMaturityCounts({ Premature: 0, Potential: 0, Mature: 0 });
 
   const startStream = () => {
+    setLoading(true);
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const newWs = new WebSocket(`${protocol}//${window.location.host}/ws`);
     newWs.onmessage = (event) => {
@@ -36,6 +38,7 @@ function App() {
     };
     setWs(newWs);
     setIsStreaming(true);
+    setLoading(false);
   };
 
   const stopStream = () => {
@@ -46,16 +49,20 @@ function App() {
   };
 
   const startCounting = async () => {
+    setLoading(true);
     const response = await fetch('http://127.0.0.1:8000/start-counting', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     if (response.ok) {
       resetCounts();
       setIsCounting(true);
     }
+    setLoading(false);
   };
 
   const stopCounting = async () => {
+    setLoading(true);
     const response = await fetch('http://127.0.0.1:8000/stop-counting', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     if (response.ok) setIsCounting(false);
+    setLoading(false);
   };
 
   const captureFrame = () => {
@@ -116,8 +123,8 @@ function App() {
               <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
             </Grid>
             <Grid container spacing={2} mb={2}>
-              <Grid item xs={6}><Button fullWidth variant="contained" color={isStreaming ? 'error' : 'primary'} onClick={isStreaming ? stopStream : startStream}>{isStreaming ? 'Stop Camera' : 'Start Pi Camera'}</Button></Grid>
-              <Grid item xs={6}><Button fullWidth variant="contained" color={isCounting ? 'error' : 'primary'} onClick={isCounting ? stopCounting : startCounting}>{isCounting ? 'Stop Counting' : 'Start Counting'}</Button></Grid>
+              <Grid item xs={6}><Button fullWidth variant="contained" color={isStreaming ? 'error' : 'primary'} onClick={isStreaming ? stopStream : startStream} disabled={loading}>{loading ? <CircularProgress size={24} /> : isStreaming ? 'Stop Camera' : 'Start Pi Camera'}</Button></Grid>
+              <Grid item xs={6}><Button fullWidth variant="contained" color={isCounting ? 'error' : 'primary'} onClick={isCounting ? stopCounting : startCounting} disabled={loading}>{loading ? <CircularProgress size={24} /> : isCounting ? 'Stop Counting' : 'Start Counting'}</Button></Grid>
             </Grid>
             <Grid container spacing={2} mb={2}>
               <Grid item xs={6}><Button fullWidth variant="contained" disabled={!isStreaming} onClick={captureFrame}>Save Frame</Button></Grid>
@@ -172,7 +179,7 @@ function App() {
           <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
           <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
         </Grid>
-        <Button fullWidth variant="contained" component="label" color="secondary">
+        <Button fullWidth variant="contained" component="label" color="secondary" disabled={loading}>
           Upload Coconut Image
           <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
         </Button>
