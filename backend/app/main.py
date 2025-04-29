@@ -11,6 +11,9 @@ import io
 import os
 from typing import Optional
 import json
+import pandas as pd
+import datetime as dt
+import queue
 
 # Try to import picamera2, fallback to None if not available
 try:
@@ -68,6 +71,14 @@ class Camera:
             return frame
         
 app = FastAPI()
+
+active_sessions = queue.Queue()
+
+# Directory for storing Excel files
+OUT_FOLDER = "output_excels"
+TEMP_FOLDER = "temp_excels"
+os.makedirs(TEMP_FOLDER, exist_ok=True)
+os.makedirs(OUT_FOLDER, exist_ok=True)
 
 # For debugging purposes
 print("current:", os.getcwd())
@@ -146,6 +157,77 @@ def frame_to_base64(framed):
     _, buffer = cv2.imencode('.jpg', framed)
     return base64.b64encode(buffer).decode('utf-8')
 
+def save_detection_entry(premature, potential, mature):
+    try:
+        print("[INFO] Saving detection entry...")
+
+        time_stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[DEBUG] Timestamp: {time_stamp}")
+
+        if active_sessions.empty():
+            raise RuntimeError("No active session found in queue.")
+
+        start_time = active_sessions.get()
+        print(f"[DEBUG] Retrieved start_time: {start_time}")
+        active_sessions.put(start_time)
+
+        total = premature + potential + mature
+        row = {
+            'Timestamp': time_stamp,
+            'Premature': premature,
+            'Potential': potential,
+            'Mature': mature,
+            'Total Coconuts': total
+        }
+        print(f"[DEBUG] Row to save: {row}")
+
+        temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+        print(f"[DEBUG] CSV Path: {temp_path}")
+
+        if not os.path.exists(temp_path):
+            raise FileNotFoundError(f"No active CSV session: {temp_path}")
+
+        df = pd.read_csv(temp_path)
+        print(f"[DEBUG] Loaded existing CSV with {len(df)} rows")
+
+        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        df.to_csv(temp_path, index=False)
+        print("[INFO] Detection entry saved successfully.")
+
+    except Exception as e:
+        print(f"[ERROR] Failed to save detection entry: {e}")
+
+@app.post("/start-counting")
+def start_counting_api():
+    for file_name in os.listdir(TEMP_FOLDER):
+        file_path = os.path.join(TEMP_FOLDER, file_name)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting file {file_path}: {e}")
+    
+    start_time = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    active_sessions.put(start_time)  # Add the start time to the queue for FIFO processing
+    df = pd.DataFrame(columns=['Timestamp', 'Image_Name', 'Premature', 'Potential', 'Mature', 'Total Coconuts'])
+    temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+    df.to_csv(temp_path, index=False)
+    return {"start_time": start_time}
+
+@app.post("/stop-counting")
+def stop_counting_api():
+    start_time = active_sessions.get()
+    end_time = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+    df = pd.read_csv(temp_path)
+    df_transposed = df.T
+    df_transposed.columns = [f'Entry {i+1}' for i in range(df_transposed.shape[1])]
+    output_file = f"coconut_data_{start_time}_{end_time}.xlsx"
+    output_path = os.path.join(OUT_FOLDER, f"coconut_data_{start_time}_{end_time}.xlsx")
+    df_transposed.to_excel(output_path, index=True, header=True)
+    os.remove(temp_path)  # Clean up the CSV file after export
+    return {"message": "Excel exported", "filename": output_file}
+
 @app.get("/")
 async def read_root():
     return FileResponse("../frontend/index.html")
@@ -196,6 +278,11 @@ async def upload_image(
     location: Optional[str] = None,
     device: Optional[str] = None
 ):
+    #Initialize counts
+    premature = 0
+    potential = 0
+    mature = 0
+
     # Read and process the uploaded image
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
@@ -226,12 +313,29 @@ async def upload_image(
     # Convert processed frame to base64 for frontend display
     base64_image = frame_to_base64(processed_frame)
 
+    try:
+        for detection in detections:
+            label = detection.get('label')
+            if label == 'Premature':
+                premature += 1
+            elif label == 'Potential':
+                potential += 1
+            elif label == 'Mature':
+                mature += 1
+        save_detection_entry(premature, potential, mature)
+    except Exception as e:
+        print(f"Error processing detections: {e}")
+
     return {
         "image": base64_image,
         "detections": detections,
         "location": location,
         "device": device,
-        "saved_path": save_path
+        "counts": {
+            "Premature": premature,
+            "Potential": potential,
+            "Mature": mature
+        },
     }
 
 
