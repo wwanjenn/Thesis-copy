@@ -74,7 +74,7 @@ print("current:", os.getcwd())
 print("Using PiCamera:", picamera_available)
 
 # Mount static files (React build)
-app.mount("/assets", StaticFiles(directory="../frontend/dist/assets"), name="assets")
+app.mount("/assets", StaticFiles(directory="../frontend/src/assets"), name="assets")
 
 # CORS middleware
 app.add_middleware(
