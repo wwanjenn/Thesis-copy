@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Box, Button, TextField, Container, Paper, Typography, Grid, Card, CardContent, CircularProgress } from '@mui/material';
-import { motion } from 'framer-motion'; // Animate
+import {
+  Box, Button, TextField, Container, Paper, Typography,
+  Grid, Card, CardContent, CircularProgress
+} from '@mui/material';
+import CoconutGif from './assets/Coconut.gif';
 
 function App() {
   const [locationName, setLocationName] = useState('');
@@ -50,7 +53,7 @@ function App() {
 
   const startCounting = async () => {
     setLoading(true);
-    const response = await fetch('http://127.0.0.1:8000/start-counting', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const response = await fetch('http://127.0.0.1:8000/start-counting', { method: 'POST' });
     if (response.ok) {
       resetCounts();
       setIsCounting(true);
@@ -60,7 +63,7 @@ function App() {
 
   const stopCounting = async () => {
     setLoading(true);
-    const response = await fetch('http://127.0.0.1:8000/stop-counting', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const response = await fetch('http://127.0.0.1:8000/stop-counting', { method: 'POST' });
     if (response.ok) setIsCounting(false);
     setLoading(false);
   };
@@ -115,101 +118,126 @@ function App() {
   const renderCocomatInterface = () => (
     <Grid container spacing={4}>
       <Grid item xs={12} md={8}>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-          <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
-            <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Coconut Fruit Maturity Detection</Typography>
-            <Grid container spacing={2} mb={2}>
-              <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
-              <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
+        <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+          <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>
+            Coconut Fruit Maturity Detection
+          </Typography>
+          <Grid container spacing={2} mb={2}>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} />
             </Grid>
-            <Grid container spacing={2} mb={2}>
-              <Grid item xs={6}><Button fullWidth variant="contained" color={isStreaming ? 'error' : 'primary'} onClick={isStreaming ? stopStream : startStream} disabled={loading}>{loading ? <CircularProgress size={24} /> : isStreaming ? 'Stop Camera' : 'Start Pi Camera'}</Button></Grid>
-              <Grid item xs={6}><Button fullWidth variant="contained" color={isCounting ? 'error' : 'primary'} onClick={isCounting ? stopCounting : startCounting} disabled={loading}>{loading ? <CircularProgress size={24} /> : isCounting ? 'Stop Counting' : 'Start Counting'}</Button></Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} />
             </Grid>
-            <Grid container spacing={2} mb={2}>
-              <Grid item xs={6}><Button fullWidth variant="contained" disabled={!isStreaming} onClick={captureFrame}>Save Frame</Button></Grid>
-              <Grid item xs={6}>
-                <Button fullWidth variant="contained" component="label" color="secondary">
-                  Upload Image
-                  <input hidden type="file" accept="image/*" onChange={handleImageUploadMat} />
-                </Button>
-              </Grid>
+          </Grid>
+          <Grid container spacing={2} mb={2}>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" color={isStreaming ? 'error' : 'primary'} onClick={isStreaming ? stopStream : startStream} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : isStreaming ? 'Stop Camera' : 'Start Pi Camera'}
+              </Button>
             </Grid>
-            <Box sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              {detectedImage
-                ? <img src={detectedImage} alt="Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <Typography variant="h6" color="text.secondary">{isStreaming ? 'Streaming...' : 'Upload or Start Camera'}</Typography>
-              }
-            </Box>
-          </Paper>
-        </motion.div>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" color={isCounting ? 'error' : 'primary'} onClick={isCounting ? stopCounting : startCounting} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : isCounting ? 'Stop Counting' : 'Start Counting'}
+              </Button>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2} mb={2}>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" disabled={!isStreaming} onClick={captureFrame}>Save Frame</Button>
+            </Grid>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" component="label" color="secondary">
+                Upload Image
+                <input hidden type="file" accept="image/*" onChange={handleImageUploadMat} />
+              </Button>
+            </Grid>
+          </Grid>
+          <Box sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            {detectedImage
+              ? <img src={detectedImage} alt="Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <Typography variant="h6" color="text.secondary">{isStreaming ? 'Streaming...' : 'Upload or Start Camera'}</Typography>
+            }
+          </Box>
+        </Paper>
       </Grid>
       <Grid item xs={12} md={4}>
-        <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.8 }}>
-          <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
-            <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Maturity Counts</Typography>
-            <Box display="flex" flexDirection="column" gap={2}>
-              {Object.entries(maturityCounts).map(([label, value]) => {
-                let color;
-                if (label === 'Premature') color = '#d0a1d6'; // Soft pinkish-purple
-                if (label === 'Potential') color = '#f0c6a0'; // Soft peach
-                if (label === 'Mature') color = '#a5d6a7'; // Soft green
+        <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+          <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Maturity Counts</Typography>
+          <Box display="flex" flexDirection="column" gap={2}>
+            {Object.entries(maturityCounts).map(([label, value]) => {
+              let color;
+              if (label === 'Premature') color = '#d0a1d6';
+              if (label === 'Potential') color = '#f0c6a0';
+              if (label === 'Mature') color = '#a5d6a7';
 
-                return (
-                  <Card key={label} variant="outlined" sx={{ bgcolor: '#fafafa', textAlign: 'center' }}>
-                    <CardContent>
-                      <Typography variant="subtitle1" fontWeight="bold">{label}</Typography>
-                      <Typography variant="h5" style={{ color }}>{value}</Typography>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Box>
-          </Paper>
-        </motion.div>
+              return (
+                <Card key={label} variant="outlined" sx={{ bgcolor: '#fafafa', textAlign: 'center' }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" fontWeight="bold">{label}</Typography>
+                    <Typography variant="h5" style={{ color }}>{value}</Typography>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </Box>
+        </Paper>
       </Grid>
     </Grid>
   );
 
   const renderCocomadInterface = () => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-      <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
-        <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Coconut Tree Disease Classification</Typography>
-        <Grid container spacing={2} mb={2}>
-          <Grid item xs={6}><TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
-          <Grid item xs={6}><TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} /></Grid>
+    <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+      <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Coconut Tree Disease Classification</Typography>
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} />
         </Grid>
-        <Button fullWidth variant="contained" component="label" color="secondary" disabled={loading}>
-          Upload Coconut Image
-          <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
-        </Button>
-        <Box mt={3} sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          {detectedImageDisease
-            ? <img src={detectedImageDisease} alt="Disease Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <Typography variant="h6" color="text.secondary">Upload to classify disease</Typography>
-          }
-        </Box>
-        {diseaseResult && (
-          <Typography mt={3} variant="h5" color="primary" textAlign="center">
-            {diseaseResult}
-          </Typography>
-        )}
-      </Paper>
-    </motion.div>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} />
+        </Grid>
+      </Grid>
+      <Button fullWidth variant="contained" component="label" color="secondary" disabled={loading}>
+        Upload Coconut Image
+        <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
+      </Button>
+      <Box mt={3} sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {detectedImageDisease
+          ? <img src={detectedImageDisease} alt="Disease Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <Typography variant="h6" color="text.secondary">Upload to classify disease</Typography>
+        }
+      </Box>
+      {diseaseResult && (
+        <Typography mt={3} variant="h5" color="primary" textAlign="center">
+          {diseaseResult}
+        </Typography>
+      )}
+    </Paper>
   );
 
   if (!selectedInterface) {
     return (
       <Container maxWidth="md">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.6 }}>
-          <Box textAlign="center" py={10}>
-            <Typography variant="h3" gutterBottom sx={{ color: '#2c3e50' }}>Welcome to CocoMD v0.1</Typography>
-            <Box mt={5} display="flex" justifyContent="center" gap={3}>
-              <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')} color="primary">Maturity Detection</Button>
-              <Button size="large" variant="contained" color="secondary" onClick={() => setSelectedInterface('COCOMAD')}>Disease Classification</Button>
-            </Box>
+        <Box textAlign="center" py={10}>
+          <Box mb={4}>
+            <img
+              src={CoconutGif}
+              alt="Welcome GIF"
+              style={{ width: 160, height: 160 }}
+            />
           </Box>
-        </motion.div>
+          <Typography variant="h3" gutterBottom sx={{ color: '#2c3e50' }}>
+            Welcome to CocoMD v0.1
+          </Typography>
+          <Box mt={5} display="flex" justifyContent="center" gap={3}>
+            <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')} color="primary">
+              Maturity Detection
+            </Button>
+            <Button size="large" variant="contained" color="secondary" onClick={() => setSelectedInterface('COCOMAD')}>
+              Disease Classification
+            </Button>
+          </Box>
+        </Box>
       </Container>
     );
   }
