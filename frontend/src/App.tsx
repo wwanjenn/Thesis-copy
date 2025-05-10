@@ -3,7 +3,8 @@ import {
   Box, Button, TextField, Container, Paper, Typography,
   Grid, Card, CardContent, CircularProgress
 } from '@mui/material';
-import CoconutGif from './assets/Coconut.gif';
+import backgroundImage from './WELCOME.png'; // Make sure WELCOME.png is in the same folder
+import cocoLogo from './COCO.png';
 
 function App() {
   const [locationName, setLocationName] = useState('');
@@ -215,40 +216,64 @@ function App() {
     </Paper>
   );
 
-  if (!selectedInterface) {
-    return (
-      <Container maxWidth="md">
-        <Box textAlign="center" py={10}>
-          <Box mb={4}>
-            <img
-              src={CoconutGif}
-              alt="Welcome GIF"
-              style={{ width: 160, height: 160 }}
-            />
-          </Box>
-          <Typography variant="h3" gutterBottom sx={{ color: '#2c3e50' }}>
-            Welcome to CocoMD v0.1
-          </Typography>
-          <Box mt={5} display="flex" justifyContent="center" gap={3}>
-            <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')} color="primary">
-              Maturity Detection
-            </Button>
-            <Button size="large" variant="contained" color="secondary" onClick={() => setSelectedInterface('COCOMAD')}>
-              Disease Classification
-            </Button>
-          </Box>
-        </Box>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Button variant="outlined" onClick={() => setSelectedInterface(null)} sx={{ mb: 3, color: '#2c3e50', borderColor: '#2c3e50' }}>
-        Back
-      </Button>
-      {selectedInterface === 'COCOMAT' ? renderCocomatInterface() : renderCocomadInterface()}
-    </Container>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+      }}
+    >
+      {!selectedInterface ? (
+        <Container maxWidth="md" sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box textAlign="center">
+            <img 
+  src={cocoLogo} 
+  alt="CocoMD Logo" 
+  style={{ 
+    width: '100%', 
+    maxWidth: '600px', 
+    display: 'block', 
+    marginBottom: '1rem',
+    filter: 'drop-shadow(1px 1px 4px rgba(0,0,0,0.6))' 
+  }} 
+/>
+
+            <Box mt={5} display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="center" gap={3}>
+              <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')} color="primary">
+                Maturity Detection
+              </Button>
+              <Button size="large" variant="contained" color="secondary" onClick={() => setSelectedInterface('COCOMAD')}>
+                Disease Classification
+              </Button>
+            </Box>
+          </Box>
+        </Container>
+      ) : (
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+<Button 
+  variant="outlined" 
+  onClick={() => setSelectedInterface(null)} 
+  sx={{ 
+    mb: 3, 
+    color: '#fff', // Text color
+    borderColor: '#007bff', // Blue border color
+    backgroundColor: '#007bff', // Blue background color
+    '&:hover': {
+      backgroundColor: '#0056b3', // Darker blue when hovered
+      borderColor: '#0056b3', // Darker border on hover
+    }
+  }}
+>
+  Back
+</Button>
+
+          {selectedInterface === 'COCOMAT' ? renderCocomatInterface() : renderCocomadInterface()}
+        </Container>
+      )}
+    </Box>
   );
 }
 
