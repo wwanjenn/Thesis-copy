@@ -127,12 +127,22 @@ def process_frame(frame):
 def process_framed(frame):
     results = matmodel(frame)
     detections = []
+    premature = 0
+    potential = 0  
+    mature = 0
 
     for result in results:
         for box in result.boxes:
             class_id = int(box.cls[0])
             score = float(box.conf[0])
             label = result.names[class_id] if class_id in result.names else "Unknown"
+
+            if label == 'Premature':
+                premature += 1
+            elif label == 'Potential':
+                potential += 1 
+            elif label == 'Mature':
+                mature += 1
 
             if score < 0.7:
                 continue
@@ -150,8 +160,11 @@ def process_framed(frame):
                 "confidence": score,
                 "bbox": [x1, y1, x2, y2]
             })
+            
+    save_detection_entry(premature, potential, mature)
 
-    return frame, detections
+    return frame, detections, premature, potential, mature
+
 
 def frame_to_base64(framed):
     _, buffer = cv2.imencode('.jpg', framed)
@@ -252,15 +265,6 @@ async def upload_image(
     # Process the frame
     processed_frame, classifications = process_frame(img)
 
-    # Save the processed image
-    save_dir = "uploaded_images_disease"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    filename = f"processed_{file.filename}"
-    save_path = os.path.join(save_dir, filename)
-    cv2.imwrite(save_path, processed_frame)
-
     # Convert processed frame to base64 for frontend display
     base64_image = frame_to_base64(processed_frame)
 
@@ -268,8 +272,7 @@ async def upload_image(
         "image": base64_image,
         "classifications": classifications,
         "location": location,
-        "device": device,
-        "saved_path": save_path
+        "device": device
     }
 
 @app.post("/upload/maturity")
@@ -295,20 +298,7 @@ async def upload_image(
     img = cv2.resize(img, (640, 360))
 
     # Process the frame
-    processed_frame, detections = process_framed(img)
-
-    # Save the processed image
-    save_dir = "uploaded_images_maturity"
-    if not os.path.exists(save_dir):
-        try:
-            os.makedirs(save_dir)
-            print(f"Directory '{save_dir}' created.")
-        except Exception as e:
-            return {"error": f"Failed to create directory: {str(e)}"}
-
-    filename = f"processed_{file.filename}"
-    save_path = os.path.join(save_dir, filename)
-    cv2.imwrite(save_path, processed_frame)
+    processed_frame, detections, premature, potential, mature = process_framed(img)
 
     # Convert processed frame to base64 for frontend display
     base64_image = frame_to_base64(processed_frame)
@@ -334,12 +324,9 @@ async def upload_image(
         "counts": {
             "Premature": premature,
             "Potential": potential,
-            "Mature": mature
+            "Mature": matur
         },
     }
-
-
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -352,7 +339,7 @@ async def websocket_endpoint(websocket: WebSocket):
             frame = camera.capture_frame()
 
             # Process the frame
-            processed_frame, detections = process_framed(frame)
+            processed_frame, detections, premature, potential, mature = process_framed(frame)
 
             # Convert to base64
             base64_frame = frame_to_base64(processed_frame)
@@ -360,7 +347,12 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send frame and detections to client
             await websocket.send_text(json.dumps({
                 "image": base64_frame,
-                "detections": detections
+                "detections": detections,
+                "counts": {
+                    "Premature": premature,
+                    "Potential": potential,
+                    "Mature": mature
+                }
             }))
 
     except Exception as e:

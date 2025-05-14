@@ -5,6 +5,7 @@ function App() {
   const [locationName, setLocationName] = useState('');
   const [deviceName, setDeviceName] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isCounting, setIsCounting] = useState(false);
   const [detectedImage, setDetectedImage] = useState<string | null>(null);
   const [detectedImageDisease, setDetectedImageDisease] = useState<string | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -31,9 +32,58 @@ function App() {
     newWs.onmessage = (event) => {
       const data = JSON.parse(event.data);
       setDetectedImage(`data:image/jpeg;base64,${data.image}`);
+      if (isCounting && data.counts) {
+        setMaturityCounts(prev => ({
+          Premature: prev.Premature + (data.counts.Premature || 0),
+          Potential: prev.Potential + (data.counts.Potential || 0),
+          Mature: prev.Mature + (data.counts.Mature || 0),
+        }));
+        
+      }
     };
     setWs(newWs);
     setIsStreaming(true);
+    console.log("Counts updated:", maturityCounts);
+  };
+
+  const startCounting = async () => {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/start-counting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (response.ok) {
+            resetCounts();
+            setIsCounting(true);
+
+        } else {
+            console.error("Failed to start counting");
+            setIsCounting(false);
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        setIsCounting(false);
+    }
+  };
+
+  const stopCounting = async () => {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/stop-counting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (response.ok) {
+            setIsCounting(false);
+        } else {
+            console.error("Failed to stop counting");
+        }
+    } catch (error) {
+        console.error("Error:", error);
+    }
   };
 
   const stopStream = () => {
@@ -45,6 +95,7 @@ function App() {
     setDetectedImage(null);
     // setDiseaseResult(null);
   };
+
 
   const startCounting = async () => {
     try {
@@ -200,6 +251,7 @@ function App() {
     } catch (error) {
       console.error('Error uploading image:', error);
     }
+    console.log("Counts updated:", maturityCounts);
   };
 
   const renderCocomatInterface = () => (
