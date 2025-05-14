@@ -11,6 +11,7 @@ function App() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
   const [diseaseResult, setDiseaseResult] = useState<string | null>(null);
+  const [isCounting, setIsCounting] = useState(false);
   const [maturityCounts, setMaturityCounts] = useState({
     Premature: 0,
     Potential: 0,
@@ -23,7 +24,7 @@ function App() {
       Mature: 0
     });
   };
-  
+
   const startStream = () => {
     // Use relative URL since we're serving from the same origin
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -95,16 +96,92 @@ function App() {
     // setDiseaseResult(null);
   };
 
-  const captureFrame = () => {
-    if (isStreaming && detectedImage) {
-      // The image is already processed by the backend
-      const link = document.createElement('a');
-      link.href = detectedImage;
-      link.download = 'detected_frame.jpg';
-      link.click();
-      
+
+  const startCounting = async () => {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/start-counting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (response.ok) {
+            resetCounts();
+            setIsCounting(true);
+
+        } else {
+            console.error("Failed to start counting");
+            setIsCounting(false);
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        setIsCounting(false);
     }
   };
+
+  const stopCounting = async () => {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/stop-counting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (response.ok) {
+            setIsCounting(false);
+        } else {
+            console.error("Failed to stop counting");
+        }
+    } catch (error) {
+        console.error("Error:", error);
+    }
+  };
+
+  const captureFrame = async () => {
+    if (!isStreaming || !detectedImage) return;
+  
+    try {
+      // Convert Base64 Data URL to Blob
+      const res = await fetch(detectedImage);
+      const blob = await res.blob();
+  
+      // Wrap Blob in a File object (filename is important!)
+      const file = new File([blob], 'detected_frame.jpg', { type: 'image/jpeg' });
+  
+      const formData = new FormData();
+      formData.append('file', file);  // Must match `file: UploadFile = File(...)`
+      formData.append('location', locationName);
+      formData.append('device', deviceName);
+  
+      const response = await fetch('http://localhost:8000/upload/maturity', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error ${response.status}: ${errorText}`);
+      }
+  
+      const data = await response.json();
+      if (isCounting && data.counts) {
+        setMaturityCounts(prev => ({
+          Premature: prev.Premature + (data.counts.Premature || 0),
+          Potential: prev.Potential + (data.counts.Potential || 0),
+          Mature: prev.Mature + (data.counts.Mature || 0),
+      }))};
+
+      if (data.image) {
+        setDetectedImage(`data:image/jpeg;base64,${data.image}`);
+      } else {
+        console.error("No image in response", data);
+      }
+  
+    } catch (error) {
+      console.error("Error uploading image:", error);
+    }
+  };
+  
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -164,8 +241,8 @@ function App() {
           Premature: prev.Premature + (data.counts.Premature || 0),
           Potential: prev.Potential + (data.counts.Potential || 0),
           Mature: prev.Mature + (data.counts.Mature || 0),
-        }));
-      }
+      }))};
+
       if (data.image) {
         setDetectedImage(`data:image/jpeg;base64,${data.image}`);
       } else {
