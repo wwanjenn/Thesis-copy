@@ -160,8 +160,6 @@ def process_framed(frame):
                 "confidence": score,
                 "bbox": [x1, y1, x2, y2]
             })
-            
-    save_detection_entry(premature, potential, mature)
 
     return frame, detections, premature, potential, mature
 
@@ -324,7 +322,7 @@ async def upload_image(
         "counts": {
             "Premature": premature,
             "Potential": potential,
-            "Mature": matur
+            "Mature": mature
         },
     }
 

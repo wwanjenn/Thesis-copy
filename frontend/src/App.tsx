@@ -10,7 +10,6 @@ function App() {
   const [locationName, setLocationName] = useState('');
   const [deviceName, setDeviceName] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isCounting, setIsCounting] = useState(false);
   const [detectedImage, setDetectedImage] = useState<string | null>(null);
   const [detectedImageDisease, setDetectedImageDisease] = useState<string | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -38,13 +37,12 @@ function App() {
           Potential: prev.Potential + (data.counts.Potential || 0),
           Mature: prev.Mature + (data.counts.Mature || 0),
         }));
-      }
     };
     setWs(newWs);
     setIsStreaming(true);
     setLoading(false);
-  };
-
+    };
+  }
   const stopStream = () => {
     if (ws) ws.close();
     setWs(null);
@@ -165,9 +163,8 @@ function App() {
     formData.append('file', file);
     formData.append('location', locationName);
     formData.append('device', deviceName);
-
+    try{
     const response = await fetch('http://localhost:8000/upload/maturity', { method: 'POST', body: formData });
-    const data = await response.json();
     const data = await response.json();
       if (isCounting && data.counts) {
         setMaturityCounts(prev => ({
@@ -184,10 +181,9 @@ function App() {
     } catch (error) {
       console.error('Error uploading image:', error);
     }
-    if (data.image) setDetectedImage(`data:image/jpeg;base64,${data.image}`);
   };
 
-  const renderCocomatInterface = () => (
+   const renderCocomatInterface = () => (
     <Grid container spacing={4}>
       <Grid item xs={12} md={8}>
         <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
