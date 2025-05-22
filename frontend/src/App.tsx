@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { Box, Button, TextField, Container, Paper, Typography } from '@mui/material';
+import {
+  Box, Button, TextField, Container, Paper, Typography,
+  Grid, Card, CardContent, CircularProgress
+} from '@mui/material';
+import backgroundImage from './WELCOME.png'; // Make sure WELCOME.png is in the same folder
+import cocoLogo from './COCO.png';
 
 function App() {
   const [locationName, setLocationName] = useState('');
@@ -15,18 +20,13 @@ function App() {
   const [maturityCounts, setMaturityCounts] = useState({
     Premature: 0,
     Potential: 0,
-    Mature: 0
+    Mature: 0,
   });
-  const resetCounts = () => {
-    setMaturityCounts({
-      Premature: 0,
-      Potential: 0,
-      Mature: 0
-    });
-  };
+  const [loading, setLoading] = useState(false);
+  const resetCounts = () => setMaturityCounts({ Premature: 0, Potential: 0, Mature: 0 });
 
   const startStream = () => {
-    // Use relative URL since we're serving from the same origin
+    setLoading(true);
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const newWs = new WebSocket(`${protocol}//${window.location.host}/ws`);
     newWs.onmessage = (event) => {
@@ -38,64 +38,19 @@ function App() {
           Potential: prev.Potential + (data.counts.Potential || 0),
           Mature: prev.Mature + (data.counts.Mature || 0),
         }));
-        
       }
     };
     setWs(newWs);
     setIsStreaming(true);
-    console.log("Counts updated:", maturityCounts);
-  };
-
-  const startCounting = async () => {
-    try {
-        const response = await fetch('http://127.0.0.1:8000/start-counting', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        if (response.ok) {
-            resetCounts();
-            setIsCounting(true);
-
-        } else {
-            console.error("Failed to start counting");
-            setIsCounting(false);
-        }
-    } catch (error) {
-        console.error("Error:", error);
-        setIsCounting(false);
-    }
-  };
-
-  const stopCounting = async () => {
-    try {
-        const response = await fetch('http://127.0.0.1:8000/stop-counting', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        if (response.ok) {
-            setIsCounting(false);
-        } else {
-            console.error("Failed to stop counting");
-        }
-    } catch (error) {
-        console.error("Error:", error);
-    }
+    setLoading(false);
   };
 
   const stopStream = () => {
-    if (ws) {
-      ws.close();
-      setWs(null);
-    }
+    if (ws) ws.close();
+    setWs(null);
     setIsStreaming(false);
     setDetectedImage(null);
-    // setDiseaseResult(null);
   };
-
 
   const startCounting = async () => {
     try {
@@ -108,11 +63,13 @@ function App() {
         if (response.ok) {
             resetCounts();
             setIsCounting(true);
+            
 
         } else {
             console.error("Failed to start counting");
             setIsCounting(false);
         }
+        setLoading(false);
     } catch (error) {
         console.error("Error:", error);
         setIsCounting(false);
@@ -132,6 +89,7 @@ function App() {
         } else {
             console.error("Failed to stop counting");
         }
+        setLoading(false);
     } catch (error) {
         console.error("Error:", error);
     }
@@ -186,40 +144,19 @@ function App() {
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-  
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('location', locationName);
     formData.append('device', deviceName);
-  
-    try {
-      const response = await fetch('http://127.0.0.1:8000/upload/disease', {
-        method: 'POST',
-        body: formData,
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to upload image');
-      }
-  
-      const data = await response.json();
-  
-      // Set the detected image
-      setDetectedImageDisease(`data:image/jpeg;base64,${data.image}`);
-  
-      // Check if classifications exist and retrieve the label
-      if (data.classifications && Array.isArray(data.classifications) && data.classifications.length > 0) {
-        const topClassification = data.classifications[0]; // Get the first classification
-        setDiseaseResult(topClassification.label); // Extract and set the label
-      } else {
-        setDiseaseResult('No disease detected');
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      setDiseaseResult('Error detecting disease');
-    }
+
+    const response = await fetch('http://127.0.0.1:8000/upload/disease', { method: 'POST', body: formData });
+    const data = await response.json();
+
+    setDetectedImageDisease(`data:image/jpeg;base64,${data.image}`);
+    setDiseaseResult(data.classifications?.[0]?.label ?? 'No disease detected');
   };
-  
+
   const handleImageUploadMat = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -229,13 +166,9 @@ function App() {
     formData.append('location', locationName);
     formData.append('device', deviceName);
 
-    try {
-      const response = await fetch('http://localhost:8000/upload/maturity', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
+    const response = await fetch('http://localhost:8000/upload/maturity', { method: 'POST', body: formData });
+    const data = await response.json();
+    const data = await response.json();
       if (isCounting && data.counts) {
         setMaturityCounts(prev => ({
           Premature: prev.Premature + (data.counts.Premature || 0),
@@ -251,243 +184,168 @@ function App() {
     } catch (error) {
       console.error('Error uploading image:', error);
     }
-    console.log("Counts updated:", maturityCounts);
+    if (data.image) setDetectedImage(`data:image/jpeg;base64,${data.image}`);
   };
 
   const renderCocomatInterface = () => (
-    <Box sx={{ display: 'center', gap: 2 }}>
-      <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
-        <Typography variant="h5" component="h2" gutterBottom align="center">
-          Coconut Fruit Maturity Detection
-        </Typography>
+    <Grid container spacing={4}>
+      <Grid item xs={12} md={8}>
+        <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+          <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>
+            Coconut Fruit Maturity Detection
+          </Typography>
+          <Grid container spacing={2} mb={2}>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} />
+            </Grid>
+          </Grid>
+          <Grid container spacing={2} mb={2}>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" color={isStreaming ? 'error' : 'primary'} onClick={isStreaming ? stopStream : startStream} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : isStreaming ? 'Stop Camera' : 'Start Pi Camera'}
+              </Button>
+            </Grid>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" color={isCounting ? 'error' : 'primary'} onClick={isCounting ? stopCounting : startCounting} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : isCounting ? 'Stop Counting' : 'Start Counting'}
+              </Button>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2} mb={2}>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" disabled={!isStreaming} onClick={captureFrame}>Save Frame</Button>
+            </Grid>
+            <Grid item xs={6}>
+              <Button fullWidth variant="contained" component="label" color="secondary">
+                Upload Image
+                <input hidden type="file" accept="image/*" onChange={handleImageUploadMat} />
+              </Button>
+            </Grid>
+          </Grid>
+          <Box sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            {detectedImage
+              ? <img src={detectedImage} alt="Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <Typography variant="h6" color="text.secondary">{isStreaming ? 'Streaming...' : 'Upload or Start Camera'}</Typography>
+            }
+          </Box>
+        </Paper>
+      </Grid>
+      <Grid item xs={12} md={4}>
+        <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+          <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Maturity Counts</Typography>
+          <Box display="flex" flexDirection="column" gap={2}>
+            {Object.entries(maturityCounts).map(([label, value]) => {
+              let color;
+              if (label === 'Premature') color = '#d0a1d6';
+              if (label === 'Potential') color = '#f0c6a0';
+              if (label === 'Mature') color = '#a5d6a7';
 
-        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <TextField
-            fullWidth
-            label="Location Name"
-            value={locationName}
-            onChange={(e) => setLocationName(e.target.value)}
-          />
-          <TextField
-            fullWidth
-            label="Device Name"
-            value={deviceName}
-            onChange={(e) => setDeviceName(e.target.value)}
-          />
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <Button
-            variant="contained"
-            color={isStreaming ? 'error' : 'primary'}
-            onClick={isStreaming ? stopStream : startStream}
-            fullWidth
-          >
-            {isStreaming ? 'Stop Camera' : 'Start Pi Camera'}
-          </Button>
-          <Button
-            variant="contained"
-            color={isCounting ? 'error' : 'primary'}
-            onClick={isCounting ? stopCounting : startCounting}
-            fullWidth
-          >
-            {isCounting ? 'Stop Counting' : 'Start Counting'}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={captureFrame}
-            disabled={!isStreaming}
-            fullWidth
-          >
-            Save Frame
-          </Button>
-          <Button
-            variant="contained"
-            component="label"
-            fullWidth
-          >
-            Upload Image
-            <input
-              type="file"
-              hidden
-              accept="image/*"
-              onChange={handleImageUploadMat}
-            />
-          </Button>
-        </Box>
-
-        <Box sx={{ width: '100%', height: '360px', position: 'relative' }}>
-          {detectedImage ? (
-            <img
-              src={detectedImage}
-              alt="Detection"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            />
-          ) : (
-            <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'grey.200',
-              }}
-            >
-              <Typography variant="body1" color="text.secondary">
-                {isStreaming ? 'Waiting for camera stream...' : 'Start camera or upload an image'}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      </Paper>
-      <Paper elevation={3} sx={{ p: 3, width: '25%' }}>
-        <Typography variant="h5" component="h2" gutterBottom align="center">
-          Maturity Count
-        </Typography>
-
-        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {Object.entries(maturityCounts).map(([label, value]) => (
-            <Box
-              key={label}
-              sx={{
-                p: 2,
-                bgcolor: 'grey.100',
-                borderRadius: 2,
-                boxShadow: 1,
-                textAlign: 'center',
-              }}
-            >
-              <Typography variant="subtitle1" fontWeight="bold">
-                {label}
-              </Typography>
-              <Typography variant="h6">{value}</Typography>
-            </Box>
-          ))}
-        </Box>
-      </Paper>
-    </Box>
+              return (
+                <Card key={label} variant="outlined" sx={{ bgcolor: '#fafafa', textAlign: 'center' }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" fontWeight="bold">{label}</Typography>
+                    <Typography variant="h5" style={{ color }}>{value}</Typography>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </Box>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 
   const renderCocomadInterface = () => (
-    <Paper elevation={3} sx={{ p: 3, height: '100%' }}>
-      <Typography variant="h5" component="h2" gutterBottom align="center">
-        Coconut Tree Disease Classification
-      </Typography>
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <TextField
-          fullWidth
-          label="Location Name"
-          value={locationName}
-          onChange={(e) => setLocationName(e.target.value)}
-        />
-        <TextField
-          fullWidth
-          label="Device Name"
-          value={deviceName}
-          onChange={(e) => setDeviceName(e.target.value)}
-        />
+    <Paper elevation={5} sx={{ p: 4, borderRadius: 4, backgroundColor: '#f0f4f4' }}>
+      <Typography variant="h4" textAlign="center" gutterBottom sx={{ color: '#2c3e50' }}>Coconut Tree Disease Classification</Typography>
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Location" value={locationName} onChange={(e) => setLocationName(e.target.value)} sx={{ backgroundColor: 'white' }} />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField fullWidth label="Device" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} sx={{ backgroundColor: 'white' }} />
+        </Grid>
+      </Grid>
+      <Button fullWidth variant="contained" component="label" color="secondary" disabled={loading}>
+        Upload Coconut Image
+        <input hidden type="file" accept="image/*" onChange={handleImageUpload} />
+      </Button>
+      <Box mt={3} sx={{ width: '100%', height: 360, borderRadius: 2, overflow: 'hidden', bgcolor: '#e9f1f1', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {detectedImageDisease
+          ? <img src={detectedImageDisease} alt="Disease Detection" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <Typography variant="h6" color="text.secondary">Upload to classify disease</Typography>
+        }
       </Box>
-  
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <Button
-          variant="contained"
-          component="label"
-          fullWidth
-        >
-          Upload Coconut Image
-          <input
-            type="file"
-            hidden
-            accept="image/*"
-            onChange={handleImageUpload}
-          />
-        </Button>
-      </Box>
-  
-      <Box sx={{ width: '100%', height: '360px', position: 'relative', mb: 2 }}>
-        {detectedImageDisease ? (
-          <img
-            src={detectedImageDisease}
-            alt="Coconut Disease Classification"
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          />
-        ) : (
-          <Box
-            sx={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: 'grey.200',
-            }}
-          >
-            <Typography variant="body1" color="text.secondary">
-              Upload an image to classify coconut diseases.
-            </Typography>
-          </Box>
-        )}
-      </Box>
-  
       {diseaseResult && (
-        <Typography variant="h6" color="text.primary" align="center">
-          Detected Disease: {diseaseResult}
+        <Typography mt={3} variant="h5" color="primary" textAlign="center">
+          {diseaseResult}
         </Typography>
       )}
     </Paper>
   );
-  
-
-  if (!selectedInterface) {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 3,
-          p: 3,
-        }}
-      >
-        <Typography variant="h4" align="center" gutterBottom>
-          Welcome to CocoMD v0.1
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            onClick={() => setSelectedInterface('COCOMAT')}
-          >
-            Coconut Fruit Maturity Detection
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => setSelectedInterface('COCOMAD')}
-          >
-            Coconut Tree Disease Classification
-          </Button>
-        </Box>
-      </Box>
-    );
-  }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Button
-          variant="outlined"
-          onClick={() => setSelectedInterface(null)}
-          sx={{ mb: 3 }}
-        >
-          Back
-        </Button>
-        {selectedInterface === 'COCOMAT'
-          ? renderCocomatInterface()
-          : renderCocomadInterface()}
-      </Box>
-    </Container>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+      }}
+    >
+      {!selectedInterface ? (
+        <Container maxWidth="md" sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box textAlign="center">
+            <img 
+  src={cocoLogo} 
+  alt="CocoMD Logo" 
+  style={{ 
+    width: '100%', 
+    maxWidth: '600px', 
+    display: 'block', 
+    marginBottom: '1rem',
+    filter: 'drop-shadow(1px 1px 4px rgba(0,0,0,0.6))' 
+  }} 
+/>
+
+
+            <Box mt={5} display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="center" gap={3}>
+              <Button size="large" variant="contained" onClick={() => setSelectedInterface('COCOMAT')} color="primary">
+                Maturity Detection
+              </Button>
+              <Button size="large" variant="contained" color="secondary" onClick={() => setSelectedInterface('COCOMAD')}>
+                Disease Classification
+              </Button>
+            </Box>
+          </Box>
+        </Container>
+      ) : (
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+<Button 
+  variant="outlined" 
+  onClick={() => setSelectedInterface(null)} 
+  sx={{ 
+    mb: 3, 
+    color: '#fff', // Text color
+    borderColor: '#007bff', // Blue border color
+    backgroundColor: '#007bff', // Blue background color
+    '&:hover': {
+      backgroundColor: '#0056b3', // Darker blue when hovered
+      borderColor: '#0056b3', // Darker border on hover
+    }
+  }}
+>
+  Back
+</Button>
+
+          {selectedInterface === 'COCOMAT' ? renderCocomatInterface() : renderCocomadInterface()}
+        </Container>
+      )}
+    </Box>
   );
 }
 
