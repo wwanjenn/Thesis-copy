@@ -171,23 +171,44 @@ def frame_to_base64(framed):
     return base64.b64encode(buffer).decode('utf-8')
 
 def save_detection_entry(premature, potential, mature):
-    time_stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    start_time = active_sessions.get()
-    active_sessions.put(start_time)
-    total = premature + potential + mature
-    row = {
-        'Timestamp': time_stamp,
-        'Premature': premature,
-        'Potential': potential,
-        'Mature': mature,
-        'Total Coconuts': total
-    }
-    temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
-    if not os.path.exists(temp_path):
-        raise FileNotFoundError(f"No active CSV session: {temp_path}")
-    df = pd.read_csv(temp_path)
-    df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    df.to_csv(temp_path, index=False)
+    try:
+        print("[INFO] Saving detection entry...")
+
+        time_stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[DEBUG] Timestamp: {time_stamp}")
+
+        if active_sessions.empty():
+            raise RuntimeError("No active session found in queue.")
+
+        start_time = active_sessions.get()
+        print(f"[DEBUG] Retrieved start_time: {start_time}")
+        active_sessions.put(start_time)
+
+        total = premature + potential + mature
+        row = {
+            'Timestamp': time_stamp,
+            'Premature': premature,
+            'Potential': potential,
+            'Mature': mature,
+            'Total Coconuts': total
+        }
+        print(f"[DEBUG] Row to save: {row}")
+
+        temp_path = os.path.join(TEMP_FOLDER, f"{start_time}.csv")
+        print(f"[DEBUG] CSV Path: {temp_path}")
+
+        if not os.path.exists(temp_path):
+            raise FileNotFoundError(f"No active CSV session: {temp_path}")
+
+        df = pd.read_csv(temp_path)
+        print(f"[DEBUG] Loaded existing CSV with {len(df)} rows")
+
+        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        df.to_csv(temp_path, index=False)
+        print("[INFO] Detection entry saved successfully.")
+
+    except Exception as e:
+        print(f"[ERROR] Failed to save detection entry: {e}")
 
 @app.post("/start-counting")
 def start_counting_api():
@@ -260,6 +281,11 @@ async def upload_image(
     location: Optional[str] = None,
     device: Optional[str] = None
 ):
+    #Initialize counts
+    premature = 0
+    potential = 0
+    mature = 0
+
     # Read and process the uploaded image
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
@@ -277,6 +303,19 @@ async def upload_image(
     # Convert processed frame to base64 for frontend display
     base64_image = frame_to_base64(processed_frame)
 
+    try:
+        for detection in detections:
+            label = detection.get('label')
+            if label == 'Premature':
+                premature += 1
+            elif label == 'Potential':
+                potential += 1
+            elif label == 'Mature':
+                mature += 1
+        save_detection_entry(premature, potential, mature)
+    except Exception as e:
+        print(f"Error processing detections: {e}")
+
     return {
         "image": base64_image,
         "detections": detections,
@@ -285,8 +324,8 @@ async def upload_image(
         "counts": {
             "Premature": premature,
             "Potential": potential,
-            "Mature": mature
-        }
+            "Mature": matur
+        },
     }
 
 @app.websocket("/ws")
