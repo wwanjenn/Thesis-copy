@@ -1,4 +1,8 @@
 # cocomat
+<<<<<<< HEAD
+=======
+# this is a copy of the original repository of our thesis "cocomat", for presentation purposes only
+>>>>>>> 1ba44eb42ba08ccaa5e6853dc5b2a576fb44b26c
 please refer to the provided zip file for training data: 
 [(to be uploaded)](https://drive.google.com/drive/folders/1Q0SPRiUncrwwulATalzZGy4ng4oyO1Uk?usp=sharing)
 
@@ -33,4 +37,8 @@ BE:
 - Usual YOLOv8
 - Ultralytics
 - etc..
+<<<<<<< HEAD
 - FastAPI (python)
+=======
+- FastAPI (python)
+>>>>>>> 1ba44eb42ba08ccaa5e6853dc5b2a576fb44b26c
